@@ -1,321 +1,354 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Glowing Energy Orb — POWER UP</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Orb Dominion</title>
 <style>
-  :root{
-    --bg:#03030a;
-    --btn-bg:#0b1228;
-    --btn-accent:linear-gradient(90deg,#5ce1ff,#b76cff);
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height:100vh; overflow:auto;
+    display:flex; flex-direction:column; align-items:center; gap:18px;
+    background:#050514; color:#fff; font-family:Arial, Helvetica, sans-serif;
+    padding:28px;
   }
-  html,body{
-    height:100%;
-    margin:0;
-    background: radial-gradient(1200px 600px at 10% 20%, rgba(50,40,120,0.06), transparent 8%),
-                radial-gradient(900px 400px at 90% 80%, rgba(30,90,255,0.03), transparent 6%),
-                var(--bg);
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    -webkit-font-smoothing:antialiased;
-    color:#fff;
-    overflow:hidden;
-  }
+  h1 { font-size:clamp(20px,4.5vw,34px); letter-spacing:3px; text-shadow:0 0 12px #7b5fff; margin:0; }
 
-  /* Canvas fills the viewport */
-  #stage{
-    position:fixed;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    pointer-events:none; /* allow button clicks */
+  .login-panel {
+    max-width: 380px;
+    margin: 10px auto;
+    padding: 14px;
+    background: #100f25;
+    border: 1px solid #7665ff;
+    border-radius: 12px;
+    text-align: center;
   }
-  canvas{
+  .login-panel h2 { margin:0 0 6px 0; font-size:16px; }
+  .login-panel p { margin:6px 0 12px 0; color:#bdb8ff; font-size:13px; }
+  .login-panel button {
+    display:block; width:100%; margin:8px 0; padding:10px 12px;
+    border-radius:8px; border:0; cursor:pointer; background:#2a264a; color:#fff;
+  }
+  #loginMessage { color: #bdb8ff; font-size: 13px; margin-top:6px; }
+
+  .orb {
+    width: min(44vw, 220px); aspect-ratio:1; border-radius:50%;
+    position:relative; transition: transform .28s ease, filter .2s ease, box-shadow .2s ease;
     display:block;
-    width:100%;
-    height:100%;
+  }
+  .orb::before { content:""; position:absolute; inset:-14%; border-radius:50%; opacity:.55;
+    border:2px solid #8c72ff; transform:rotateX(65deg); animation: spin 6s linear infinite; }
+  .orb.powered { transform:scale(1.16); filter:brightness(1.6); box-shadow:0 0 40px rgba(120,200,255,0.5); }
+  @keyframes spin { to { transform: rotateX(65deg) rotate(360deg); } }
+
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  button {
+    padding:12px 18px; border-radius:40px; border:0; cursor:pointer; font-weight:700;
+    background:linear-gradient(90deg,#20cfff,#a44dff); color:#fff; letter-spacing:.06em;
+    box-shadow:0 6px 20px rgba(112,76,255,0.18);
+  }
+  button.secondary { background:linear-gradient(90deg,#44475a,#2f3242); padding:10px 14px; box-shadow:none; }
+
+  .meta { display:flex; gap:18px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .meta p { margin:0; color:#cfc9ff; font-size:14px; }
+
+  .shop {
+    width: min(980px, 96vw); background: rgba(10,12,18,0.55); border-radius:12px; padding:12px;
+    border:1px solid rgba(150,160,255,0.06);
+  }
+  .shop h2 { margin:0 0 8px 0; font-size:14px; color:#e7e7ff; letter-spacing:.08em; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .card {
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.008));
+    border-radius:10px; padding:8px; display:flex; gap:8px; align-items:center;
+    justify-content:space-between; border:1px solid rgba(255,255,255,0.03);
+  }
+  .swatch {
+    width:56px; height:56px; border-radius:50%; border:2px solid rgba(255,255,255,0.06);
+    box-shadow: inset 0 8px 18px rgba(255,255,255,0.02);
+  }
+  .card .info { flex:1; margin-left:10px; color:#e7e7ff; font-weight:700; font-size:13px; }
+  .card .cost { color:#cbd0ff; font-weight:600; font-size:13px; margin-right:8px; }
+  .card button { padding:8px 10px; border-radius:8px; font-weight:700; font-size:13px; }
+
+  .ownedTag { background: rgba(120,200,255,0.09); color:#bfe7ff; padding:6px 8px; border-radius:999px; font-weight:700; font-size:12px; }
+
+  @media (max-width:640px){
+    .grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .swatch{ width:48px; height:48px; }
   }
 
-  /* UI container */
-  .ui {
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
-    bottom:48px;
-    display:flex;
-    gap:14px;
-    align-items:center;
-    pointer-events:auto; /* enable pointer events for children */
-  }
-
-  /* Power button */
-  .power-btn{
-    --pad:20px 40px;
-    padding:var(--pad);
-    border-radius:36px;
-    border:1px solid rgba(255,255,255,0.06);
-    background:var(--btn-bg);
-    color:#e9f7ff;
-    font-weight:700;
-    letter-spacing:1px;
-    font-size:18px;
-    cursor:pointer;
-    box-shadow:0 6px 20px rgba(80,40,200,0.08), inset 0 -2px 12px rgba(0,0,0,0.35);
-    transition:transform .18s ease, box-shadow .18s ease;
-    display:inline-flex;
-    align-items:center;
-    gap:10px;
-  }
-  .power-btn:active{ transform:translateY(1px) scale(.995); }
-
-  /* Ambient glow behind button (animated) */
-  .glow {
-    width:180px;
-    height:44px;
-    border-radius:28px;
-    position:absolute;
-    left:0; right:0; margin:auto;
-    filter:blur(18px);
-    opacity:0.8;
-    mix-blend-mode:screen;
-    z-index:-1;
-    transition:opacity .3s ease, transform .3s ease;
-  }
-
-  /* small hint text */
-  .hint{
-    font-size:13px;
-    color:rgba(255,255,255,0.65);
-    text-align:center;
-    margin-top:6px;
-  }
-
-  /* powered state */
-  .power-btn.powered{
-    background:linear-gradient(90deg,#173b7a,#3b0f5a);
-    box-shadow:0 20px 60px rgba(100,60,200,0.35), 0 6px 18px rgba(0,0,0,0.5);
-    transform:translateY(-2px) scale(1.01);
-  }
-
-  /* accessibility focus */
-  .power-btn:focus{ outline:2px solid rgba(180,200,255,0.12); outline-offset:3px; }
-
-  @media (max-width:420px){
-    .power-btn{ padding:14px 26px; font-size:16px; border-radius:30px; }
+  @media (prefers-reduced-motion: reduce) {
+    .orb::before { animation-duration: 20s !important; }
   }
 </style>
 </head>
 <body>
-<div id="stage">
-  <canvas id="orb"></canvas>
-</div>
 
-<div class="ui" aria-hidden="false">
-  <div id="glow" class="glow" style="background:linear-gradient(90deg,#5ce1ff33,#b76cff33);"></div>
-  <button id="power" class="power-btn" aria-pressed="false" title="Power up the orb">
-    POWER UP
-  </button>
-</div>
+  <div class="login-panel" id="loginPanel">
+    <h2>🔐 Sign in to Orb World</h2>
+    <p>Choose your sign-in provider</p>
+
+    <button onclick="demoLogin('Google')">🌐 Continue with Google</button>
+    <button onclick="demoLogin('Apple')">🍎 Continue with Apple</button>
+    <button onclick="demoLogin('Samsung')">📱 Continue with Samsung</button>
+    <button onclick="demoLogin('Firefox')">🦊 Continue with Firefox</button>
+
+    <p id="loginMessage">Demo mode — no account connected.</p>
+  </div>
+
+  <h1>ETHAN'S ORB DOMINION</h1>
+
+  <div id="orbContainer">
+    <div id="mainOrb" class="orb" aria-label="Energy orb"></div>
+  </div>
+
+  <div class="controls">
+    <button id="powerButton">⚡ HOLD TO POWER UP! ⚡</button>
+    <button id="resetButton" class="secondary">Reset</button>
+  </div>
+
+  <div class="meta">
+    <p id="status">Energy level: 0%</p>
+    <p id="orbCount">Orbs: <span id="orbCountDisplay">0</span></p>
+    <p id="equippedLabel">Equipped: <span id="equippedName">Blue Orb</span></p>
+  </div>
+
+  <div class="shop" aria-label="Orb shop">
+    <h2>Orb Shop — buy and equip orbs</h2>
+    <div id="shopGrid" class="grid"></div>
+  </div>
 
 <script>
-(() => {
-  const canvas = document.getElementById('orb');
-  const ctx = canvas.getContext('2d', {alpha:true});
-  let W = canvas.width = innerWidth;
-  let H = canvas.height = innerHeight;
-  let cx = W/2, cy = H/2;
+function demoLogin(provider) {
+  const msg = document.getElementById('loginMessage');
+  if (msg) msg.textContent = provider + ' selected! Real sign-in setup is still needed.';
+}
 
-  // Orb configuration (responsive)
-  const baseRadius = () => Math.min(W, H) * 0.17; // central orb radius
-  let energy = 0;         // current energy (0..1)
-  let targetEnergy = 0;   // animation target
-  let time = 0;
+const orbs = [
+  {name:"Blue Orb", color:"#168cff", cost:0},
+  {name:"Fire Orb", color:"#ff4b18", cost:0},
+  {name:"Toxic Orb", color:"#55ff45", cost:70},
+  {name:"Golden Orb", color:"#ffd447", cost:190},
+  {name:"Purple Orb", color:"#b34cff", cost:293},
+  {name:"Ice Orb", color:"#8cf5ff", cost:1340},
+  {name:"Dark Orb", color:"#7770a8", cost:2910},
+  {name:"Galaxy Orb", color:"#ff55d9", cost:6767},
+  {name:"Rainbow Orb", color:"#ffffff", cost:8989},
+  {name:"GOD ORB", color:"#ff2222", cost:9210},
+  {name:"ULTRA ORB", color:"#00ffdd", cost:10000}
+];
 
-  // Particles for shimmering glow
-  let particles = [];
-  function makeParticles(n){
-    particles = new Array(n).fill(0).map(() => {
-      const r = Math.random() * 0.9 + 0.15; // radius factor (relative to orb)
-      return {
-        angle: Math.random() * Math.PI * 2,
-        r,
-        spin: (Math.random()*0.5 + 0.02) * (Math.random()<0.5? -1 : 1),
-        size: Math.random()*2.8 + 0.6,
-        hueShift: Math.random()*60 - 20
-      };
-    });
-  }
-  makeParticles(120);
+const mainOrb = document.getElementById('mainOrb');
+const powerButton = document.getElementById('powerButton');
+const resetButton = document.getElementById('resetButton');
+const status = document.getElementById('status');
+const orbCountDisplay = document.getElementById('orbCountDisplay');
+const equippedName = document.getElementById('equippedName');
+const shopGrid = document.getElementById('shopGrid');
 
-  // Responsive resize
-  function resize(){
-    W = canvas.width = innerWidth;
-    H = canvas.height = innerHeight;
-    cx = W/2; cy = H/2;
-  }
-  addEventListener('resize', resize, {passive:true});
+let count = 0;
+let owned = [];
+let equipped = 0;
+let powered = false;
+let holdTimer = null;
+let power = 1;
 
-  // Utilities
-  const lerp = (a,b,t) => a + (b-a)*t;
-  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
-
-  // Draw one frame
-  function draw(dt){
-    time += dt * 0.001;
-    // smooth energy towards target
-    energy = lerp(energy, targetEnergy, 0.06);
-
-    // subtle background wipe (keeps trails when low alpha)
-    ctx.clearRect(0,0,W,H);
-
-    // slight vignette / ambient glow using radial gradient overlay (adds depth)
-    const bigGrad = ctx.createRadialGradient(cx, cy, baseRadius()*0.2, cx, cy, Math.max(W,H)*0.9);
-    bigGrad.addColorStop(0, `rgba(20,12,40,${0.12 * energy})`);
-    bigGrad.addColorStop(1, 'rgba(0,0,0,0.0)');
-    ctx.fillStyle = bigGrad;
-    ctx.fillRect(0,0,W,H);
-
-    ctx.save();
-    // center pulse factor controls inner brightness and flicker
-    const pulse = 1 + Math.sin(time*3.2 + energy*8)*0.07 + Math.sin(time*7.1)*0.03;
-
-    // Main orb radial gradient
-    const r = baseRadius() * (1 + 0.45 * energy);
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0.0, `rgba(255,255,255,${0.95 * (0.65 + energy*0.35) * pulse})`);
-    g.addColorStop(0.12, `rgba(140,200,255,${0.85 * (0.6 + energy*0.3)})`); // bright blue
-    g.addColorStop(0.32, `rgba(120,100,255,${0.65 * (0.4 + energy*0.4)})`); // purple
-    g.addColorStop(0.62, `rgba(40,15,80,${0.28 * energy})`); // dark purple
-    g.addColorStop(1.0, `rgba(10,6,18,0.0)`);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI*2);
-    ctx.fill();
-
-    // Glow ring (soft stroke)
-    ctx.beginPath();
-    ctx.lineWidth = Math.max(2, Math.min(36, r * 0.12 * (0.6 + energy)));
-    ctx.strokeStyle = `rgba(160,120,255,${0.14 + 0.35*energy})`;
-    ctx.shadowColor = `rgba(120,140,255,${0.22 + 0.5*energy})`;
-    ctx.shadowBlur = 40 * (0.6 + energy);
-    ctx.arc(cx, cy, r * (1 + 0.06 * energy), 0, Math.PI*2);
-    ctx.stroke();
-
-    // Add particles shimmer with additive blending
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.filter = 'blur(8px)';
-    for (let i=0;i<particles.length;i++){
-      const p = particles[i];
-      p.angle += p.spin * (0.8 + energy*3) * dt * 0.001;
-      const px = cx + Math.cos(p.angle) * r * p.r * (0.65 + 0.35*energy);
-      const py = cy + Math.sin(p.angle) * r * p.r * (0.65 + 0.35*energy);
-      const size = p.size * (1 + energy*2) * (0.6 + 0.4*Math.abs(Math.sin(time*2 + i)));
-      const grd = ctx.createRadialGradient(px, py, 0, px, py, size*4);
-      const hue = 220 + p.hueShift + energy*40; // between blue and purple
-      grd.addColorStop(0, `rgba(255,255,255,${0.45 + 0.55*energy})`);
-      grd.addColorStop(0.18, `hsla(${hue},100%,65%,${0.36 + 0.45*energy})`);
-      grd.addColorStop(1, `hsla(${hue+30},85%,35%,0)`);
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(px, py, size*4, 0, Math.PI*2);
-      ctx.fill();
+function loadState() {
+  try {
+    const sCount = localStorage.getItem('ethanOrbCount');
+    count = sCount ? parseInt(sCount,10) || 0 : 0;
+    const sOwned = localStorage.getItem('ethanOrbOwned');
+    owned = sOwned ? JSON.parse(sOwned) : [];
+    if (!Array.isArray(owned) || owned.length < orbs.length) {
+      owned = new Array(orbs.length).fill(0);
+      owned[0] = 1; owned[1] = 1;
     }
-    ctx.filter = 'none';
-
-    // Core flicker (sharp)
-    ctx.globalCompositeOperation = 'screen';
-    const innerR = r * (0.22 + 0.05*energy);
-    const innerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, innerR * 2.3);
-    innerGrad.addColorStop(0, `rgba(255,255,255,${0.95 * (0.9 + energy*0.1)})`);
-    innerGrad.addColorStop(0.6, `rgba(200,230,255,${0.25 + 0.35*energy})`);
-    innerGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = innerGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, innerR * (1.6 + 0.4*Math.sin(time*6)), 0, Math.PI*2);
-    ctx.fill();
-
-    ctx.restore();
-
-    // Slight chromatic outer haze
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.28 * energy;
-    const haze = ctx.createRadialGradient(cx-20, cy-8, 0, cx, cy, r*2.6);
-    haze.addColorStop(0, 'rgba(100,200,255,0.6)');
-    haze.addColorStop(0.6, 'rgba(180,100,255,0.15)');
-    haze.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = haze;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r*2.6, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
+    const sEquipped = localStorage.getItem('ethanOrbEquipped');
+    equipped = (sEquipped !== null) ? (parseInt(sEquipped,10) || 0) : 0;
+    if (equipped < 0 || equipped >= orbs.length) equipped = 0;
+  } catch (e) {
+    count = 0;
+    owned = new Array(orbs.length).fill(0);
+    owned[0] = 1; owned[1] = 1;
+    equipped = 0;
   }
+}
 
-  // Animation loop
-  let last = performance.now();
-  function frame(now){
-    const dt = now - last;
-    last = now;
-    draw(dt);
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+function persistAll() {
+  try {
+    localStorage.setItem('ethanOrbCount', String(count));
+    localStorage.setItem('ethanOrbOwned', JSON.stringify(owned));
+    localStorage.setItem('ethanOrbEquipped', String(equipped));
+  } catch (e) {}
+}
 
-  // POWER UP control
-  const powerBtn = document.getElementById('power');
-  const glowEl = document.getElementById('glow');
+function hexToRgb(hex) {
+  const h = hex.replace('#','');
+  const hs = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+  const n = parseInt(hs,16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function lighten(hex, amt) {
+  const c = hexToRgb(hex);
+  const r = clamp(Math.round(c.r + (255 - c.r)*amt),0,255);
+  const g = clamp(Math.round(c.g + (255 - c.g)*amt),0,255);
+  const b = clamp(Math.round(c.b + (255 - c.b)*amt),0,255);
+  return `rgb(${r},${g},${b})`;
+}
+function darken(hex, amt) {
+  const c = hexToRgb(hex);
+  const r = clamp(Math.round(c.r*(1-amt)),0,255);
+  const g = clamp(Math.round(c.g*(1-amt)),0,255);
+  const b = clamp(Math.round(c.b*(1-amt)),0,255);
+  return `rgb(${r},${g},${b})`;
+}
 
-  let powering = false;
-  function powerSequence(){
-    if(powering) return;
-    powering = true;
-    powerBtn.classList.add('powered');
-    powerBtn.setAttribute('aria-pressed', 'true');
-    // ramp up
-    targetEnergy = 1;
-    makeParticles(220); // increase shimmer
-    // animate glow element behind button
-    glowEl.style.transition = 'transform .5s cubic-bezier(.2,.9,.2,1), opacity .5s';
-    glowEl.style.transform = 'scale(1.18)';
-    glowEl.style.opacity = '1';
-    // hold for a bit, then fade
-    setTimeout(() => {
-      // ramp down
-      targetEnergy = 0;
-      makeParticles(110);
-      powerBtn.classList.remove('powered');
-      powerBtn.setAttribute('aria-pressed', 'false');
-      glowEl.style.transform = 'scale(1)';
-      glowEl.style.opacity = '0.55';
-      powering = false;
-    }, 2300);
-  }
+function renderOrbAppearance() {
+  const orb = orbs[equipped];
+  const base = orb.color || '#fff';
+  mainOrb.style.background = `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95) 0%, ${lighten(base,0.25)} 8%, ${base} 26%, ${darken(base,0.25)} 62%, rgba(0,0,0,0) 100%)`;
+  equippedName.textContent = orb.name;
+}
 
-  powerBtn.addEventListener('click', powerSequence);
-  powerBtn.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); powerSequence(); } });
+function renderMeta() {
+  orbCountDisplay.textContent = String(count);
+  status.textContent = powered ? 'ENERGY LEVEL: 100% ⚡' : 'Energy level: 0%';
+  powerButton.textContent = powered ? '💥 POWER DOWN 💥' : '⚡ HOLD TO POWER UP! ⚡';
+}
 
-  // subtle idle breathing even when not powered
-  (function idlePulse(){
-    setInterval(() => {
-      // very small idle wobble to keep it alive
-      targetEnergy = Math.max(0, targetEnergy);
-      if(targetEnergy === 0 && !powering){
-        // tiny randomized idle spikes
-        const spike = Math.random() < 0.08;
-        if(spike){
-          targetEnergy = 0.26 + Math.random()*0.14;
-          setTimeout(()=> targetEnergy = 0, 380 + Math.random()*600);
-        }
+function renderShop() {
+  shopGrid.innerHTML = '';
+  orbs.forEach((o, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, ${o.color} 30%, ${darken(o.color,0.2)} 100%)`;
+
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.textContent = o.name;
+
+    const right = document.createElement('div');
+    right.style.display = 'flex';
+    right.style.alignItems = 'center';
+    right.style.gap = '8px';
+
+    if (owned[idx]) {
+      if (equipped === idx) {
+        const tag = document.createElement('div');
+        tag.className = 'ownedTag';
+        tag.textContent = 'Equipped';
+        right.appendChild(tag);
+      } else {
+        const btn = document.createElement('button');
+        btn.textContent = 'Equip';
+        btn.addEventListener('click', () => {
+          equipped = idx; persistAll(); renderAll();
+        }, { passive: true });
+        right.appendChild(btn);
       }
-    }, 700);
-  })();
+    } else {
+      const cost = document.createElement('div');
+      cost.className = 'cost';
+      cost.textContent = o.cost === 0 ? 'Free' : `${o.cost}`;
+      right.appendChild(cost);
 
-  // Initialize glow element state
-  glowEl.style.opacity = '0.55';
-  glowEl.style.transform = 'scale(1)';
-})();
+      const buy = document.createElement('button');
+      buy.textContent = 'Buy';
+      buy.disabled = (count < o.cost);
+      buy.style.opacity = buy.disabled ? '0.62' : '1';
+      buy.addEventListener('click', () => {
+        if (count >= o.cost) {
+          count -= o.cost; owned[idx] = 1; equipped = idx;
+          persistAll(); renderAll();
+          buy.animate([{ transform:'scale(1)' }, { transform:'scale(0.96)' }, { transform:'scale(1)' }], { duration:180 });
+        } else {
+          buy.animate([{ transform:'translateX(-4px)' }, { transform:'translateX(4px)' }, { transform:'translateX(0)' }], { duration:220 });
+        }
+      }, { passive: true });
+      right.appendChild(buy);
+    }
+
+    card.appendChild(sw);
+    card.appendChild(info);
+    card.appendChild(right);
+    shopGrid.appendChild(card);
+  });
+}
+
+function startPower() {
+  if (holdTimer !== null) return;
+
+  powered = true;
+  mainOrb.classList.add('powered');
+  status.textContent = '⚡ FARMING ORBS!!';
+  renderMeta();
+
+  function collect() {
+    count += power;
+    persistAll();
+    renderMeta();
+    status.textContent = '🔥 +' + power + ' ORBS!!';
+  }
+
+  collect();
+  holdTimer = setInterval(collect, 150);
+}
+
+function stopPower() {
+  if (holdTimer === null) return;
+
+  clearInterval(holdTimer);
+  holdTimer = null;
+
+  powered = false;
+  mainOrb.classList.remove('powered');
+  status.textContent = 'Ready to collect!';
+  renderMeta();
+}
+
+function resetGame() {
+  if (!confirm('Reset ALL your orbs and upgrades?')) return;
+  count = 0;
+  owned = new Array(orbs.length).fill(0);
+  owned[0] = 1; owned[1] = 1;
+  equipped = 0;
+  powered = false;
+  persistAll();
+  renderAll();
+}
+
+function renderAll() {
+  renderOrbAppearance();
+  renderMeta();
+  renderShop();
+}
+
+loadState();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(holdTimer);
+    holdTimer = null;
+    powered = false;
+    renderMeta();
+  }
+});
+
+powerButton.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  startPower();
+}, { passive: true });
+
+powerButton.addEventListener('pointerup', stopPower, { passive: true });
+powerButton.addEventListener('pointerleave', stopPower, { passive: true });
+powerButton.addEventListener('pointercancel', stopPower, { passive: true });
+resetButton.addEventListener('click', resetGame, { passive: true });
+
+renderAll();
 </script>
 </body>
 </html>
